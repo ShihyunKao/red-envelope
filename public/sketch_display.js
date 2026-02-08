@@ -1,12 +1,12 @@
 let socket;
 let particles = [];
-const EMOJIS = ["🧧", "💰", "✨", "🍊", "🧨", "💎", "🐉"];
+// 只要这几个高颜值的 Emoji
+const EMOJIS = ["🧧", "💰", "✨", "🍊", "💎"];
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   socket = io();
   textAlign(CENTER, CENTER);
-  textFont('Arial'); 
   
   socket.on('new_envelope', () => {
     explode();
@@ -14,10 +14,11 @@ function setup() {
 }
 
 function draw() {
-  // 拖尾效果
-  background(10, 5, 20, 30); 
+  // 1. 拖尾效果 (保留这个！这是产生流动感的关键)
+  // 这里的 30 是透明度，数值越小拖尾越长
+  background(0, 0, 0, 30); 
 
-  // 开启高亮混合模式
+  // 2. 开启发光混合模式 (让 Emoji 像霓虹灯一样)
   blendMode(ADD);
 
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -28,6 +29,7 @@ function draw() {
     }
   }
   
+  // 3. 绘制背景字 (切换回正常混合模式，否则字看不清)
   blendMode(BLEND);
   drawBackgroundText();
 }
@@ -36,72 +38,63 @@ function drawBackgroundText() {
   push();
   translate(width/2, height/2);
   noStroke();
-  fill(255, 255, 255, 10); // 极淡的背景
-  // 计算字体大小，保证不撑破屏幕
-  textSize(min(width, height) * 0.5);
-  text("福", 0, 0); // 唯一保留的中文
+  fill(255, 255, 255, 15); // 极淡的白色，不抢眼
+  textSize(min(width, height) * 0.4);
+  text("福", 0, 0); 
   pop();
 }
 
 function explode() {
-  // 每次发射一大把
-  for (let i = 0; i < 20; i++) {
-    particles.push(new CrazyParticle());
+  // 每次喷射 15 个粒子
+  for (let i = 0; i < 15; i++) {
+    particles.push(new NeonParticle());
   }
 }
 
-// === 疯狂粒子类 ===
-class CrazyParticle {
+// === 霓虹粒子类 ===
+class NeonParticle {
   constructor() {
-    // 1. 从屏幕底部随机位置发射
-    this.pos = createVector(random(width * 0.2, width * 0.8), height + 20);
+    // 从屏幕底部随机位置发射
+    this.pos = createVector(random(width * 0.3, width * 0.7), height + 20);
     
-    // 2. 初始速度：非常快！向上冲！
-    // X轴随机散开，Y轴强力向上 (根据屏幕高度比例)
-    this.vel = createVector(random(-15, 15), random(-height * 0.04, -height * 0.025));
+    // === 关键修正：强力向上喷射 ===
+    // random(-25, -12) 保证了它们能冲到屏幕最顶端
+    this.vel = createVector(random(-10, 10), random(-25, -12)); 
     
-    // 3. 较低的重力，让它们飞得更高
-    this.acc = createVector(0, 0.25); 
+    this.acc = createVector(0, 0.4); // 适中的重力
     
     this.content = random(EMOJIS);
-    this.size = random(40, 80); // 更大的图标
+    this.size = random(30, 60);
     this.life = 255;
-    this.rotateSpeed = random(-0.2, 0.2);
     this.angle = random(TWO_PI);
+    this.rotSpeed = random(-0.1, 0.1);
   }
 
   update() {
     this.vel.add(this.acc);
     this.pos.add(this.vel);
     
-    // 旋转起来
-    this.angle += this.rotateSpeed;
-    this.life -= 1.5; // 寿命更长，飞得更久
+    this.angle += this.rotSpeed;
+    this.life -= 1.5; // 寿命
 
-    // === 核心：四面反弹逻辑 ===
+    // === 关键修正：墙壁反弹 (让它们乱飞) ===
     
-    // 1. 左右墙壁反弹
+    // 左右反弹
     if (this.pos.x < 0 || this.pos.x > width) {
-      this.vel.x *= -0.8; // 反弹并损失一点点能量
-      // 把它拉回屏幕内，防止卡住
+      this.vel.x *= -0.8; 
       this.pos.x = constrain(this.pos.x, 0, width);
     }
-
-    // 2. 天花板反弹 (撞到顶部弹回来)
+    
+    // 天花板反弹 (防止飞出屏幕)
     if (this.pos.y < 0) {
-      this.vel.y *= -0.8;
+      this.vel.y *= -0.6; // 撞到顶掉下来
       this.pos.y = 0;
     }
 
-    // 3. 地面反弹 (撞到底部再弹起来！)
+    // 地面反弹
     if (this.pos.y > height) {
-      this.vel.y *= -0.7; // 地面摩擦大一点
+      this.vel.y *= -0.7;
       this.pos.y = height;
-      
-      // 如果速度太慢了，就不弹了，防止无限抖动
-      if (abs(this.vel.y) < 2) {
-        this.vel.y = 0;
-      }
     }
   }
 
@@ -110,11 +103,12 @@ class CrazyParticle {
     translate(this.pos.x, this.pos.y);
     rotate(this.angle);
     
-    // 金色光晕
-    drawingContext.shadowBlur = 25;
-    drawingContext.shadowColor = color(255, 200, 0, this.life);
+    // 金色光晕 (保留这个高级感)
+    drawingContext.shadowBlur = 30;
+    drawingContext.shadowColor = color(255, 100, 50, this.life); // 偏红橙色的暖光
     
     textSize(this.size);
+    // 使用 life 控制透明度，慢慢消失
     fill(255, 255, 255, this.life);
     text(this.content, 0, 0);
     pop();

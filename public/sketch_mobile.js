@@ -1,29 +1,25 @@
 let socket;
 let permissionGranted = false;
-let bubbles = []; 
 let shockwaves = []; 
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   socket = io();
   
-  // 初始化背景气泡
-  for(let i=0; i<50; i++) {
-    bubbles.push(new Bubble());
-  }
-
-  // === 英文按钮 ===
+  // 极简英文按钮
   if (typeof(DeviceOrientationEvent) !== 'undefined' && typeof(DeviceOrientationEvent.requestPermission) === 'function') {
-    let btn = createButton("✨ TAP TO START ✨");
-    btn.position(width/2 - 90, height/2 - 25);
-    btn.size(180, 50);
-    btn.style("background", "rgba(0,0,0,0.3)"); // 半透明黑底
-    btn.style("border", "2px solid #FFD700");
+    let btn = createButton("TAP TO START");
+    btn.position(width/2 - 80, height/2 - 25);
+    btn.size(160, 50);
+    // 磨砂玻璃质感样式
+    btn.style("background", "rgba(255, 215, 0, 0.1)");
+    btn.style("border", "1px solid rgba(255, 215, 0, 0.5)");
     btn.style("color", "#FFD700");
-    btn.style("font-family", "Arial");
-    btn.style("font-weight", "bold");
-    btn.style("border-radius", "25px");
-    btn.style("backdrop-filter", "blur(5px)");
+    btn.style("font-family", "Helvetica, Arial, sans-serif");
+    btn.style("letter-spacing", "2px");
+    btn.style("font-size", "14px");
+    btn.style("border-radius", "2px");
+    btn.style("backdrop-filter", "blur(4px)");
     btn.mousePressed(() => {
       DeviceOrientationEvent.requestPermission()
         .then(r => { if (r == 'granted') { permissionGranted = true; btn.hide(); } });
@@ -32,42 +28,41 @@ function setup() {
 }
 
 function draw() {
-  background(20, 0, 5); // 深邃背景
-  
-  for(let b of bubbles) {
-    b.update();
-    b.display();
-  }
+  // 高级深红渐变背景
+  setGradient(0, 0, width, height, color(20, 0, 5), color(40, 0, 10));
   
   if (!permissionGranted) return;
 
+  // 绘制冲击波
   for (let i = shockwaves.length - 1; i >= 0; i--) {
     shockwaves[i].update();
     shockwaves[i].display();
     if (shockwaves[i].alpha <= 0) shockwaves.splice(i, 1);
   }
 
-  // === 英文 UI 排版 ===
+  // === 英文 UI 排版 (极简) ===
   push();
   translate(width/2, height/2);
   textAlign(CENTER, CENTER);
   
-  // 发光的主标题
-  drawingContext.shadowBlur = 40;
-  drawingContext.shadowColor = color(255, 50, 50);
+  // 主标题：呼吸发光效果
+  let glow = 20 + sin(frameCount * 0.05) * 10;
+  drawingContext.shadowBlur = glow;
+  drawingContext.shadowColor = color(255, 215, 0, 150);
   
   fill(255, 215, 0);
-  textSize(50);
+  noStroke();
+  textSize(40);
   textStyle(BOLD);
-  text("SHAKE", 0, -20); // 改成了 SHAKE
+  textFont('Helvetica');
+  text("SHAKE", 0, -15);
   
   // 副标题
-  textSize(16);
+  drawingContext.shadowBlur = 0; //这行很重要，防止小字模糊
+  textSize(12);
   textStyle(NORMAL);
-  fill(255, 255, 255, 200);
-  noStroke();
-  drawingContext.shadowBlur = 0;
-  text("TO TOSS LUCK", 0, 35); // 改成了英文提示
+  fill(255, 255, 255, 100); // 降低透明度，拉开层次
+  text("TO RELEASE FORTUNE", 0, 25);
   pop();
 
   // 摇动检测
@@ -77,29 +72,34 @@ function draw() {
   }
 }
 
+// 线性渐变辅助函数
+function setGradient(x, y, w, h, c1, c2) {
+  noFill();
+  for (let i = y; i <= y + h; i++) {
+    let inter = map(i, y, y + h, 0, 1);
+    let c = lerpColor(c1, c2, inter);
+    stroke(c);
+    line(x, i, x + w, i);
+  }
+}
+
 let lastThrow = 0;
 function triggerThrow() {
-  if (millis() - lastThrow > 300) { // 冷却时间缩短，可以疯狂摇
-    socket.emit('throw', { type: 'chaos' }); 
+  if (millis() - lastThrow > 300) {
+    socket.emit('throw', { type: 'glow' }); 
     if (navigator.vibrate) navigator.vibrate(50);
     shockwaves.push(new Shockwave());
     lastThrow = millis();
   }
 }
 
-class Bubble {
-  constructor() { this.reset(); this.y = random(height); }
-  reset() {
-    this.x = random(width); this.y = height + 10;
-    this.size = random(2, 6); this.speed = random(1, 4);
-    this.alpha = random(50, 150);
-  }
-  update() { this.y -= this.speed; if (this.y < -10) this.reset(); }
-  display() { noStroke(); fill(255, 215, 0, this.alpha); ellipse(this.x, this.y, this.size); }
-}
-
 class Shockwave {
-  constructor() { this.size = 10; this.alpha = 255; }
-  update() { this.size += 25; this.alpha -= 10; } // 扩散得更快
-  display() { noFill(); stroke(255, 215, 0, this.alpha); strokeWeight(8); ellipse(width/2, height/2, this.size); }
+  constructor() { this.size = 10; this.alpha = 200; }
+  update() { this.size += 20; this.alpha -= 8; }
+  display() { 
+    noFill(); 
+    stroke(255, 215, 0, this.alpha); 
+    strokeWeight(2); // 线条变细，更精致
+    ellipse(width/2, height/2, this.size); 
+  }
 }
