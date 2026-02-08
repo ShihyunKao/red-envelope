@@ -1,20 +1,28 @@
 let socket;
 let permissionGranted = false;
-let energy = 0; // 能量值
+let bubbles = []; // 背景气泡
+let shockwaves = []; // 摇动时的冲击波
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   socket = io();
-  colorMode(HSB, 360, 100, 100, 100); // 使用 HSB 颜色模式，颜色更高级
   
-  // 极简的授权点击区域（整个屏幕）
+  // 初始化背景气泡
+  for(let i=0; i<50; i++) {
+    bubbles.push(new Bubble());
+  }
+
+  // 授权按钮逻辑（美化版）
   if (typeof(DeviceOrientationEvent) !== 'undefined' && typeof(DeviceOrientationEvent.requestPermission) === 'function') {
-    // 创建一个全屏透明按钮
-    let btn = createButton("");
-    btn.position(0, 0);
-    btn.size(width, height);
+    let btn = createButton("✨ 解锁除夕 ✨");
+    btn.position(width/2 - 80, height/2 - 25);
+    btn.size(160, 50);
     btn.style("background", "transparent");
-    btn.style("border", "none");
+    btn.style("border", "2px solid #FFD700");
+    btn.style("color", "#FFD700");
+    btn.style("font-size", "18px");
+    btn.style("border-radius", "25px");
+    btn.style("backdrop-filter", "blur(10px)");
     btn.mousePressed(() => {
       DeviceOrientationEvent.requestPermission()
         .then(r => { if (r == 'granted') { permissionGranted = true; btn.hide(); } });
@@ -23,63 +31,101 @@ function setup() {
 }
 
 function draw() {
-  // 1. 高级渐变背景 (深朱红 -> 深紫红)
-  drawGradient();
+  // 1. 深红渐变背景
+  background(20, 0, 5); 
+  
+  // 2. 绘制上升的金色气泡
+  for(let b of bubbles) {
+    b.update();
+    b.display();
+  }
+  
+  if (!permissionGranted) return;
 
-  if (!permissionGranted) {
-    fill(45, 100, 100);
-    textAlign(CENTER);
-    textSize(16);
-    text("Tap screen to start", width/2, height/2);
-    return;
+  // 3. 绘制摇动产生的冲击波
+  for (let i = shockwaves.length - 1; i >= 0; i--) {
+    shockwaves[i].update();
+    shockwaves[i].display();
+    if (shockwaves[i].alpha <= 0) shockwaves.splice(i, 1);
   }
 
-  // 2. 计算摇动强度
-  let shake = abs(accelerationX) + abs(accelerationY) + abs(accelerationZ);
-  
-  // 能量衰减（平滑过渡）
-  energy = lerp(energy, 0, 0.1);
-
-  // 3. 核心交互：光环
-  // 摇动越强，圆圈越大，颜色越亮
-  if (shake > 30) {
-    energy = 100;
-    triggerThrow();
-  }
-
-  // 画中心的光晕
-  noStroke();
-  // 外层光晕
-  fill(45, 80, 100, 20); // 金色，低透明度
-  ellipse(width/2, height/2, 150 + energy * 2);
-  
-  // 内层核心
-  fill(45, energy, 100, 80); // 摇动时变白
-  ellipse(width/2, height/2, 100 + energy);
-
-  // 文字
-  fill(0, 0, 100, 50); // 淡淡的白色
-  textSize(14);
+  // 4. 中央文字 UI
+  push();
+  translate(width/2, height/2);
   textAlign(CENTER, CENTER);
-  text("SHAKE TO SEND LUCK", width/2, height - 50);
-}
+  
+  // 发光文字效果
+  drawingContext.shadowBlur = 30;
+  drawingContext.shadowColor = color(255, 50, 50);
+  
+  fill(255, 215, 0);
+  textSize(40);
+  text("摇", 0, -20);
+  
+  textSize(14);
+  fill(255, 255, 255, 150);
+  noStroke();
+  drawingContext.shadowBlur = 0; // 关闭阴影
+  text("SHAKE DEVICE", 0, 30);
+  pop();
 
-// 辅助：画背景
-function drawGradient() {
-  for (let y = 0; y < height; y++) {
-    let inter = map(y, 0, height, 0, 1);
-    // HSB: 350(深红) -> 330(深紫红)
-    let c = color(340, 90, map(y, 0, height, 20, 10)); 
-    stroke(c);
-    line(0, y, width, y);
+  // === 摇动检测 ===
+  let shake = abs(accelerationX) + abs(accelerationY) + abs(accelerationZ);
+  if (shake > 35) { 
+    triggerThrow();
   }
 }
 
 let lastThrow = 0;
 function triggerThrow() {
-  if (millis() - lastThrow > 400) { // 稍微快一点的频率
-    socket.emit('throw', { force: 1 }); 
-    if (navigator.vibrate) navigator.vibrate(50); // 短促有力的震动
+  if (millis() - lastThrow > 400) {
+    socket.emit('throw', { type: 'glow' }); 
+    if (navigator.vibrate) navigator.vibrate(50);
+    
+    // 视觉反馈：添加一个冲击波
+    shockwaves.push(new Shockwave());
     lastThrow = millis();
+  }
+}
+
+// === 装饰类：背景气泡 ===
+class Bubble {
+  constructor() {
+    this.reset();
+    this.y = random(height); // 初始满屏分布
+  }
+  reset() {
+    this.x = random(width);
+    this.y = height + 10;
+    this.size = random(2, 6);
+    this.speed = random(1, 3);
+    this.alpha = random(50, 150);
+  }
+  update() {
+    this.y -= this.speed;
+    if (this.y < -10) this.reset();
+  }
+  display() {
+    noStroke();
+    fill(255, 215, 0, this.alpha);
+    ellipse(this.x, this.y, this.size);
+  }
+}
+
+// === 反馈类：冲击波 ===
+class Shockwave {
+  constructor() {
+    this.size = 10;
+    this.alpha = 255;
+  }
+  update() {
+    this.size += 15; // 扩散速度
+    this.alpha -= 10; // 消失速度
+  }
+  display() {
+    noFill();
+    stroke(255, 215, 0, this.alpha);
+    strokeWeight(5);
+    ellipse(width/2, height/2, this.size);
   }
 }
