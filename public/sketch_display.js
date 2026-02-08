@@ -1,14 +1,12 @@
 let socket;
 let particles = [];
-const EMOJIS = ["🧧", "💰", "✨", "🍊", "🧨", "💎"];
+const EMOJIS = ["🧧", "💰", "✨", "🍊", "🧨", "💎", "🐉"];
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   socket = io();
   textAlign(CENTER, CENTER);
-  
-  // 设置文字字体，如果没有特定字体，p5会用默认的
-  textFont('Georgia'); 
+  textFont('Arial'); 
   
   socket.on('new_envelope', () => {
     explode();
@@ -16,11 +14,10 @@ function setup() {
 }
 
 function draw() {
-  // 1. 关键技巧：不要完全清空背景，而是覆盖一层半透明的黑
-  // 这会产生美丽的“长曝光拖尾”效果
-  background(10, 5, 20, 40); // 最后的 40 是透明度 (0-255)
+  // 拖尾效果
+  background(10, 5, 20, 30); 
 
-  // 2. 开启发光混合模式 (会让颜色越叠越亮)
+  // 开启高亮混合模式
   blendMode(ADD);
 
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -31,7 +28,6 @@ function draw() {
     }
   }
   
-  // 3. 恢复正常混合模式绘制背景文字（否则文字会糊掉）
   blendMode(BLEND);
   drawBackgroundText();
 }
@@ -40,48 +36,73 @@ function drawBackgroundText() {
   push();
   translate(width/2, height/2);
   noStroke();
-  fill(255, 255, 255, 5); // 极淡的背景字
-  textSize(min(width, height) * 0.4);
-  text("福", 0, 0);
+  fill(255, 255, 255, 10); // 极淡的背景
+  // 计算字体大小，保证不撑破屏幕
+  textSize(min(width, height) * 0.5);
+  text("福", 0, 0); // 唯一保留的中文
   pop();
 }
 
 function explode() {
-  // 每次爆炸生成 Emoji 和 细小的火花
-  let startX = random(width * 0.2, width * 0.8);
-  let startY = height; // 从底部发射
-
-  // 生成 Emoji (主粒子)
-  for (let i = 0; i < 15; i++) {
-    particles.push(new EmojiParticle(startX, startY));
-  }
-  
-  // 生成金色火花 (氛围粒子)
-  for (let i = 0; i < 30; i++) {
-    particles.push(new Sparkle(startX, startY));
+  // 每次发射一大把
+  for (let i = 0; i < 20; i++) {
+    particles.push(new CrazyParticle());
   }
 }
 
-// === 主角：Emoji 粒子 ===
-class EmojiParticle {
-  constructor(x, y) {
-    this.pos = createVector(x, y);
-    // 向上的爆发力
-    this.vel = createVector(random(-6, 6), random(-18, -12)); 
-    this.acc = createVector(0, 0.4); // 重力
+// === 疯狂粒子类 ===
+class CrazyParticle {
+  constructor() {
+    // 1. 从屏幕底部随机位置发射
+    this.pos = createVector(random(width * 0.2, width * 0.8), height + 20);
+    
+    // 2. 初始速度：非常快！向上冲！
+    // X轴随机散开，Y轴强力向上 (根据屏幕高度比例)
+    this.vel = createVector(random(-15, 15), random(-height * 0.04, -height * 0.025));
+    
+    // 3. 较低的重力，让它们飞得更高
+    this.acc = createVector(0, 0.25); 
+    
     this.content = random(EMOJIS);
-    this.size = random(30, 60);
+    this.size = random(40, 80); // 更大的图标
     this.life = 255;
-    this.rotateSpeed = random(-0.1, 0.1);
+    this.rotateSpeed = random(-0.2, 0.2);
     this.angle = random(TWO_PI);
   }
 
   update() {
     this.vel.add(this.acc);
     this.pos.add(this.vel);
-    this.vel.mult(0.96); // 空气阻力 (关键！让它们炸开后有悬浮感)
-    this.life -= 4;
+    
+    // 旋转起来
     this.angle += this.rotateSpeed;
+    this.life -= 1.5; // 寿命更长，飞得更久
+
+    // === 核心：四面反弹逻辑 ===
+    
+    // 1. 左右墙壁反弹
+    if (this.pos.x < 0 || this.pos.x > width) {
+      this.vel.x *= -0.8; // 反弹并损失一点点能量
+      // 把它拉回屏幕内，防止卡住
+      this.pos.x = constrain(this.pos.x, 0, width);
+    }
+
+    // 2. 天花板反弹 (撞到顶部弹回来)
+    if (this.pos.y < 0) {
+      this.vel.y *= -0.8;
+      this.pos.y = 0;
+    }
+
+    // 3. 地面反弹 (撞到底部再弹起来！)
+    if (this.pos.y > height) {
+      this.vel.y *= -0.7; // 地面摩擦大一点
+      this.pos.y = height;
+      
+      // 如果速度太慢了，就不弹了，防止无限抖动
+      if (abs(this.vel.y) < 2) {
+        this.vel.y = 0;
+      }
+    }
   }
 
   display() {
@@ -89,43 +110,14 @@ class EmojiParticle {
     translate(this.pos.x, this.pos.y);
     rotate(this.angle);
     
-    // 文字发光效果
-    drawingContext.shadowBlur = 20;
-    drawingContext.shadowColor = color(255, 200, 50, this.life);
+    // 金色光晕
+    drawingContext.shadowBlur = 25;
+    drawingContext.shadowColor = color(255, 200, 0, this.life);
     
     textSize(this.size);
     fill(255, 255, 255, this.life);
     text(this.content, 0, 0);
     pop();
-  }
-
-  isDead() {
-    return this.life < 0;
-  }
-}
-
-// === 配角：金色火花 ===
-class Sparkle {
-  constructor(x, y) {
-    this.pos = createVector(x, y);
-    this.vel = createVector(random(-4, 4), random(-15, -5));
-    this.acc = createVector(0, 0.2); // 较轻的重力
-    this.life = 255;
-    this.color = color(random([ '#FFD700', '#FF4500', '#FFFFFF' ]));
-  }
-
-  update() {
-    this.vel.add(this.acc);
-    this.pos.add(this.vel);
-    this.life -= 6; // 消失得更快
-  }
-
-  display() {
-    noStroke();
-    fill(red(this.color), green(this.color), blue(this.color), this.life);
-    // 随机大小闪烁
-    let s = random(2, 5); 
-    ellipse(this.pos.x, this.pos.y, s);
   }
 
   isDead() {
