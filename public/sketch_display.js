@@ -1,21 +1,28 @@
 let socket;
 let particles = [];
-// 我们要用的素材库：不用加载图片，直接用 Emoji！
-const EMOJIS = ["🧧", "💰", "🍊", "🧨", "✨", "🐉", "💎"];
+const MAX_PARTICLES = 800; // 粒子上限，防止卡顿
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   socket = io();
-  textAlign(CENTER, CENTER);
-  
+  colorMode(HSB, 360, 100, 100, 100);
+  background(0); // 纯黑底色，突出金色
+  noCursor(); // 隐藏鼠标，纯展示
+
   socket.on('new_envelope', () => {
-    fireworks();
+    explode();
   });
 }
 
 function draw() {
-  // 这里的透明度决定了“拖尾”的长短。20比较长，50比较短。
-  background(10, 5, 20, 40); // 深邃的夜空紫黑色
+  // 关键技巧：不要每次都清空背景。
+  // 而是画一层极高透明度的黑色。这会产生“长曝光”的光轨效果。
+  fill(0, 0, 0, 10); // 透明度 10/100
+  noStroke();
+  rect(0, 0, width, height);
+
+  // 启用叠加混合模式，让粒子重叠的地方发光（Bloom效果）
+  blendMode(ADD);
 
   for (let i = particles.length - 1; i >= 0; i--) {
     particles[i].update();
@@ -24,85 +31,84 @@ function draw() {
       particles.splice(i, 1);
     }
   }
+
+  // 恢复默认混合模式，否则背景画不上去
+  blendMode(BLEND);
+  
+  // 画一个极其淡的“福”字在背景里，像水印一样
+  drawBackgroundText();
 }
 
-// === 触发烟花爆炸 ===
-function fireworks() {
-  // 一次生成 30-50 个粒子
-  let count = random(30, 50);
-  let startX = random(width * 0.2, width * 0.8);
-  let startY = height + 50; // 从屏幕底部冲上来，或者从中间炸开
-  
-  // 也可以改为从屏幕上方掉落，看你喜好。这里设定为从中间炸开：
-  startX = random(width);
-  startY = -50; 
+function drawBackgroundText() {
+  push();
+  translate(width/2, height/2);
+  textAlign(CENTER, CENTER);
+  textSize(min(width, height) * 0.4);
+  fill(350, 80, 80, 2); // 极淡的红色，几乎看不见
+  text("福", 0, 0);
+  pop();
+}
 
-  for (let i = 0; i < count; i++) {
-    particles.push(new EmojiParticle(startX, startY));
+function explode() {
+  // 每次爆发产生 100 个粒子
+  let startX = random(width * 0.2, width * 0.8);
+  let startY = random(height * 0.2, height * 0.8);
+  
+  // 或者是从屏幕中心爆发
+  // startX = width/2; startY = height/2;
+
+  for (let i = 0; i < 100; i++) {
+    particles.push(new GoldParticle(startX, startY));
   }
 }
 
-// === 粒子类 ===
-class EmojiParticle {
+// === 金沙粒子类 ===
+class GoldParticle {
   constructor(x, y) {
-    this.x = x;
-    this.y = y;
-    // 随机选择一个 Emoji
-    this.content = random(EMOJIS);
-    this.size = random(24, 60); // 大小随机
+    this.pos = createVector(x, y);
+    // 随机向四周爆发
+    this.vel = p5.Vector.random2D();
+    this.vel.mult(random(2, 10)); // 爆发速度
+    this.acc = createVector(0, 0);
     
-    // 物理属性：向四周炸开
-    this.vx = random(-8, 8); 
-    this.vy = random(0, 15); // 向下冲
+    this.life = 255.0;
+    this.decay = random(1, 3); // 消失速度
     
-    this.gravity = 0.4; // 重力
-    this.friction = 0.96; // 空气阻力
-    this.life = 255; // 寿命
-    
-    this.angle = random(TWO_PI); // 初始角度
-    this.rotSpeed = random(-0.2, 0.2); // 旋转速度
+    // 颜色：在金色(45)到橙色(30)之间浮动
+    this.hue = random(35, 50); 
+    this.size = random(2, 6);
   }
 
   update() {
-    this.x += this.vx;
-    this.y += this.vy;
-    this.vy += this.gravity;
-    this.vx *= this.friction; // 慢慢减速
+    this.vel.mult(0.96); // 摩擦力，粒子会慢慢停下来
+    this.life -= this.decay;
     
-    this.angle += this.rotSpeed;
-    this.life -= 2; // 慢慢消失
+    // 加一点点随机流动感（布朗运动），让它像烟雾一样
+    this.vel.x += random(-0.1, 0.1);
+    this.vel.y += random(-0.1, 0.1);
+    
+    // 稍微向下的重力，像金粉洒落
+    this.vel.y += 0.05; 
 
-    // === 地面反弹效果 ===
-    if (this.y > height - this.size) {
-      this.y = height - this.size;
-      this.vy *= -0.6; // 反弹，并且损失一点能量
-      this.rotSpeed *= 0.5; // 地面摩擦让旋转变慢
-    }
-    
-    // === 墙壁反弹 ===
-    if (this.x < 0 || this.x > width) {
-      this.vx *= -0.8;
-    }
+    this.pos.add(this.vel);
   }
 
   display() {
-    push();
-    translate(this.x, this.y);
-    rotate(this.angle);
+    // 粒子越死越小
+    let r = map(this.life, 0, 255, 0, this.size);
     
-    // 让它稍微有点发光的感觉
-    drawingContext.shadowBlur = 20;
-    drawingContext.shadowColor = color(255, 215, 0); // 金色光晕
-    
-    textSize(this.size);
-    // 根据寿命设置透明度
-    fill(255, 255, 255, this.life); 
-    text(this.content, 0, 0);
-    
-    pop();
+    // 颜色设置：高亮度，透明度随生命值变化
+    fill(this.hue, 80, 100, map(this.life, 0, 255, 0, 100));
+    noStroke();
+    ellipse(this.pos.x, this.pos.y, r);
   }
 
   isDead() {
-    return this.life <= 0;
+    return this.life < 0;
   }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  background(0);
 }
