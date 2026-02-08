@@ -1,6 +1,6 @@
 let socket;
 let particles = [];
-// 只要这几个高颜值的 Emoji
+// Emoji
 const EMOJIS = ["🧧", "💰", "✨", "🍊", "💎"];
 
 function setup() {
@@ -14,11 +14,10 @@ function setup() {
 }
 
 function draw() {
-  // 1. 拖尾效果 (保留这个！这是产生流动感的关键)
-  // 这里的 30 是透明度，数值越小拖尾越长
+  // 1. trailing effect
   background(0, 0, 0, 30); 
 
-  // 2. 开启发光混合模式 (让 Emoji 像霓虹灯一样)
+  // 2. Enable the glow blending mode (making emojis look like neon lights)
   blendMode(ADD);
 
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -29,7 +28,7 @@ function draw() {
     }
   }
   
-  // 3. 绘制背景字 (切换回正常混合模式，否则字看不清)
+  // 3. Draw background text
   blendMode(BLEND);
   drawBackgroundText();
 }
@@ -38,30 +37,30 @@ function drawBackgroundText() {
   push();
   translate(width/2, height/2);
   noStroke();
-  fill(255, 255, 255, 15); // 极淡的白色，不抢眼
+  fill(255, 255, 255, 15); 
   textSize(min(width, height) * 0.4);
   text("福", 0, 0); 
   pop();
 }
 
 function explode() {
-  // 每次喷射 15 个粒子
+  // 15 particles are ejected each time
   for (let i = 0; i < 15; i++) {
     particles.push(new NeonParticle());
   }
 }
 
-// === 霓虹粒子类 ===
+// === Neon Particle Class ===
 class NeonParticle {
   constructor() {
-    // 从屏幕底部随机位置发射
+    // Launch from a random position at the bottom of the screen
     this.pos = createVector(random(width * 0.3, width * 0.7), height + 20);
     
-    // === 关键修正：强力向上喷射 ===
-    // random(-25, -12) 保证了它们能冲到屏幕最顶端
+    // === Powerfully jetting upward ===
+    // random(-25, -12) ensures that they can rush to the top of the screen
     this.vel = createVector(random(-10, 10), random(-25, -12)); 
     
-    this.acc = createVector(0, 0.4); // 适中的重力
+    this.acc = createVector(0, 0.4); // Moderate gravity
     
     this.content = random(EMOJIS);
     this.size = random(30, 60);
@@ -75,23 +74,23 @@ class NeonParticle {
     this.pos.add(this.vel);
     
     this.angle += this.rotSpeed;
-    this.life -= 1.5; // 寿命
+    this.life -= 1.5; 
 
-    // === 关键修正：墙壁反弹 (让它们乱飞) ===
+    // === Wall rebound (let them fly around) ===
     
-    // 左右反弹
+    // Rebound left and right
     if (this.pos.x < 0 || this.pos.x > width) {
       this.vel.x *= -0.8; 
       this.pos.x = constrain(this.pos.x, 0, width);
     }
     
-    // 天花板反弹 (防止飞出屏幕)
+    // Ceiling rebound (prevents flying out of the screen)
     if (this.pos.y < 0) {
-      this.vel.y *= -0.6; // 撞到顶掉下来
+      this.vel.y *= -0.6; // Hit the top and fall down
       this.pos.y = 0;
     }
 
-    // 地面反弹
+    // Ground rebound
     if (this.pos.y > height) {
       this.vel.y *= -0.7;
       this.pos.y = height;
@@ -103,12 +102,12 @@ class NeonParticle {
     translate(this.pos.x, this.pos.y);
     rotate(this.angle);
     
-    // 金色光晕 (保留这个高级感)
+    // Golden halo
     drawingContext.shadowBlur = 30;
     drawingContext.shadowColor = color(255, 100, 50, this.life); // 偏红橙色的暖光
     
     textSize(this.size);
-    // 使用 life 控制透明度，慢慢消失
+    // Use life to control transparency and make it fade away gradually.
     fill(255, 255, 255, this.life);
     text(this.content, 0, 0);
     pop();

@@ -6,12 +6,11 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   socket = io();
   
-  // 极简英文按钮
   if (typeof(DeviceOrientationEvent) !== 'undefined' && typeof(DeviceOrientationEvent.requestPermission) === 'function') {
     let btn = createButton("TAP TO START");
     btn.position(width/2 - 80, height/2 - 25);
     btn.size(160, 50);
-    // 磨砂玻璃质感样式
+    // Frosted glass texture style
     btn.style("background", "rgba(255, 215, 0, 0.1)");
     btn.style("border", "1px solid rgba(255, 215, 0, 0.5)");
     btn.style("color", "#FFD700");
@@ -28,24 +27,24 @@ function setup() {
 }
 
 function draw() {
-  // 高级深红渐变背景
+  // Advanced crimson gradient background
   setGradient(0, 0, width, height, color(20, 0, 5), color(40, 0, 10));
   
   if (!permissionGranted) return;
 
-  // 绘制冲击波
+  // Draw the shock wave
   for (let i = shockwaves.length - 1; i >= 0; i--) {
     shockwaves[i].update();
     shockwaves[i].display();
     if (shockwaves[i].alpha <= 0) shockwaves.splice(i, 1);
   }
 
-  // === 英文 UI 排版 (极简) ===
+  // === UI ===
   push();
   translate(width/2, height/2);
   textAlign(CENTER, CENTER);
   
-  // 主标题：呼吸发光效果
+  // Main Title: Breathing Light Effect
   let glow = 20 + sin(frameCount * 0.05) * 10;
   drawingContext.shadowBlur = glow;
   drawingContext.shadowColor = color(255, 215, 0, 150);
@@ -57,22 +56,22 @@ function draw() {
   textFont('Helvetica');
   text("SHAKE", 0, -15);
   
-  // 副标题
-  drawingContext.shadowBlur = 0; //这行很重要，防止小字模糊
+  // Subtitle
+  drawingContext.shadowBlur = 0; 
   textSize(12);
   textStyle(NORMAL);
-  fill(255, 255, 255, 100); // 降低透明度，拉开层次
+  fill(255, 255, 255, 100); 
   text("TO RELEASE FORTUNE", 0, 25);
   pop();
 
-  // 摇动检测
+  // Shake detection
   let shake = abs(accelerationX) + abs(accelerationY) + abs(accelerationZ);
   if (shake > 35) { 
     triggerThrow();
   }
 }
 
-// 线性渐变辅助函数
+// Linear gradient helper function
 function setGradient(x, y, w, h, c1, c2) {
   noFill();
   for (let i = y; i <= y + h; i++) {
@@ -99,7 +98,7 @@ class Shockwave {
   display() { 
     noFill(); 
     stroke(255, 215, 0, this.alpha); 
-    strokeWeight(2); // 线条变细，更精致
+    strokeWeight(2); 
     ellipse(width/2, height/2, this.size); 
   }
 }
