@@ -104,7 +104,7 @@ class NeonParticle {
     
     // Golden halo
     drawingContext.shadowBlur = 30;
-    drawingContext.shadowColor = color(255, 100, 50, this.life); // 偏红橙色的暖光
+    drawingContext.shadowColor = color(255, 100, 50, this.life);
     
     textSize(this.size);
     // Use life to control transparency and make it fade away gradually.
